@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<div id="container">
+  <video id="remote" playsinline autoplay muted></video>
+</div>
+      
+<script async>
+  const remote = document.getElementById('remote');
+
+  var localCandidates = [];
+  var pc;
+  var server;
+  
+  start();
+  
+  async function start() {
+  
+    server = await connectSignaling(`ws://localhost:8080`);
+
+    const configuration = {};
+    pc = new RTCPeerConnection(configuration);
+
+    pc.addEventListener('track', gotRemoteStream);
+    
+    pc.onicecandidate = ({ candidate }) => {
+      localCandidates = [...localCandidates, candidate];
+      server.send(JSON.stringify({ice: JSON.stringify(localCandidates)}));
+    };
+  }
+  
+  function gotRemoteStream(e) {
+    remote.srcObject = e.streams[0];
+  }
+
+  async function applyOffer(sdp) {
+    const offer = { type: 'offer', sdp };
+    await pc.setRemoteDescription(offer);
+
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    server.send(JSON.stringify({answer: answer.sdp}));
+  }
+
+  function applyICE(ice) {
+    const remoteICE = parseJSON(ice);
+    remoteICE.forEach(c => {
+      pc.addIceCandidate(c);
+    });
+  }
+
+  function connectSignaling(url) {
+    return new Promise(function(resolve, reject) {
+      var server = new WebSocket(url);
+
+      server.onmessage = function({data}) {
+        const msg = JSON.parse(data);
+        console.debug('its for me!', msg);
+
+        if (msg.offer) {
+          applyOffer(msg.offer);
+        }
+      }
+      server.onopen = function() {
+        resolve(server);
+      };
+      server.onerror = function(err) {
+        reject(err);
+      };
+    });
+  }
+
+</script>
+
+</body>
+</html>

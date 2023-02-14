@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<script async>
+
+  var localCandidates = [];
+  var pc;
+  
+  start();
+  
+  async function start() {
+    //const stream = await navigator.mediaDevices.getUserMedia({video: { frameRate: 5 }});
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { cursor: "always", frameRate: 15 },
+      audio: false
+    });
+
+    const tracks = stream.getTracks();
+
+    const configuration = {};
+    pc = new RTCPeerConnection(configuration);
+
+    const transceiver = pc.addTransceiver(tracks[0], { streams: [stream] });
+    const capabilities = RTCRtpSender.getCapabilities('video');
+    const { codecs } = capabilities;
+
+    for (let i = 0; i < capabilities.codecs.length; i++) {
+      const codec = capabilities.codecs[i];
+      if (codec.mimeType.toLowerCase() === 'video/av1') {
+        transceiver.setCodecPreferences([codec]);
+        break;
+      }
+    }
+
+    const offer = await pc.createOffer({ offerToReceiveVideo: 1 });
+    await pc.setLocalDescription(offer);
+
+    server = await connectSignaling(`ws://localhost:8080`);
+    server.send(JSON.stringify({offer: offer.sdp}));
+
+  }
+
+  async function applyAnswer(sdp) {
+    const answer = { type: 'answer', sdp };
+    await pc.setRemoteDescription(answer);
+  }
+
+  function applyICE(ice) {
+    const remoteICE = JSON.parse(ice);
+    remoteICE.forEach(c => {
+      pc.addIceCandidate(c);
+    });
+  }
+
+  function connectSignaling(url) {
+    return new Promise(function(resolve, reject) {
+      var server = new WebSocket(url);
+
+      server.onmessage = function({data}) {
+        const msg = JSON.parse(data);
+        console.debug('sender:', msg);
+        if (msg.answer) {
+          applyAnswer(msg.answer);
+        }
+        if (msg.ice) {
+          applyICE(msg.ice);
+        }
+
+      }
+      server.onopen = function() {
+        resolve(server);
+      };
+      server.onerror = function(err) {
+        reject(err);
+      };
+    });
+  }
+  
+</script>
+  
+</body>
+</html>

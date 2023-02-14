@@ -1,0 +1,10 @@
+{
+  "name": "webrtc-server",
+  "version": "0.0.1",
+  "description": "A websocket signaling server for WebRTC apps",
+  "main": "server.js",
+  "dependencies": {
+    "ws": "^7.4.2"
+  },
+  "license": "MIT"
+}
