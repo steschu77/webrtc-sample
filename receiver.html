@@ -17,7 +17,7 @@
   
   async function start() {
   
-    server = await connectSignaling(`ws://localhost:8080`);
+    server = await connectSignaling(`wss://${window.location.host}`);
 
     const configuration = {};
     pc = new RTCPeerConnection(configuration);

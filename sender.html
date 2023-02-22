@@ -36,7 +36,7 @@
     const offer = await pc.createOffer({ offerToReceiveVideo: 1 });
     await pc.setLocalDescription(offer);
 
-    server = await connectSignaling(`ws://localhost:8080`);
+    server = await connectSignaling(`wss://${window.location.host}`);
     server.send(JSON.stringify({offer: offer.sdp}));
 
   }
